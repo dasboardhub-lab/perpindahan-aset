@@ -167,6 +167,9 @@
 
                             <!-- Area Tombol Aksi (Icon mode di HP) -->
                             <div class="flex justify-end gap-1.5 shrink-0 ml-auto items-center">
+                                <button onclick="openPrintModal()" class="bg-indigo-700 hover:bg-indigo-600 text-white w-11 h-11 md:w-auto md:h-auto md:px-3.5 md:py-2.5 rounded-xl md:rounded-lg text-sm font-bold border border-indigo-600 flex items-center justify-center shrink-0 shadow-lg" title="Cetak Laporan BAST">
+                                    <i class="fas fa-print text-lg md:text-base"></i> <span class="hidden md:inline md:ml-1.5">Cetak</span>
+                                </button>
                                 <button onclick="loadData()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 w-11 h-11 md:w-auto md:h-auto md:px-3.5 md:py-2.5 rounded-xl md:rounded-lg text-sm border border-gray-600 hidden md:flex items-center justify-center shrink-0" title="Refresh Data">
                                     <i class="fas fa-sync-alt"></i>
                                 </button>
@@ -338,6 +341,56 @@
                     <button onclick="executeResetAll()" class="w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold shadow-lg transition-all">Ya, Reset</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Cetak BAST -->
+    <div id="printModal" class="fixed inset-0 bg-black/80 z-[150] hidden flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden border border-gray-700 max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900 shrink-0">
+                <h3 class="font-bold text-white text-lg"><i class="fas fa-print text-indigo-500 mr-2"></i>Cetak Berita Acara</h3>
+                <button onclick="closePrintModal()" class="text-gray-400 hover:text-white transition-colors bg-gray-800 p-2 rounded-lg"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form id="printForm" onsubmit="executePrint(event)" class="p-4 sm:p-6 space-y-4 overflow-y-auto flex-grow custom-scrollbar">
+                <div>
+                    <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Pilih Data Retase</label>
+                    <select id="printRetase" class="w-full px-3 py-3 sm:py-2.5 bg-gray-900 border border-indigo-500/50 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm cursor-pointer shadow-inner appearance-none font-bold" required>
+                        <option value="Semua">Semua Retase (Seluruh Gudang)</option>
+                        <option value="Retase 1">Retase 1</option>
+                        <option value="Retase 2">Retase 2</option>
+                        <option value="Retase 3">Retase 3</option>
+                        <option value="Retase 4">Retase 4</option>
+                        <option value="Retase 5">Retase 5</option>
+                        <option value="Retase 6">Retase 6</option>
+                        <option value="Retase 7">Retase 7</option>
+                        <option value="Retase 8">Retase 8</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Dari Lokasi Asal</label>
+                        <input type="text" id="printFrom" class="w-full px-3 py-3 sm:py-2 bg-gray-900 border border-gray-700 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm" placeholder="Contoh: HO Jakarta" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Ke Lokasi Tujuan</label>
+                        <input type="text" id="printTo" class="w-full px-3 py-3 sm:py-2 bg-gray-900 border border-gray-700 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm" placeholder="Contoh: Site Kalimantan" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Nama PIC Pengirim</label>
+                        <input type="text" id="printSender" class="w-full px-3 py-3 sm:py-2 bg-gray-900 border border-gray-700 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm" placeholder="Nama Pemuat" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Nama PIC Penerima</label>
+                        <input type="text" id="printReceiver" class="w-full px-3 py-3 sm:py-2 bg-gray-900 border border-gray-700 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm" placeholder="Nama Penerima" required>
+                    </div>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end">
+                    <button type="button" onclick="closePrintModal()" class="px-5 py-3 sm:py-2 text-gray-400 font-bold hover:bg-gray-700 rounded-xl sm:rounded-lg">Batal</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 sm:py-2 rounded-xl sm:rounded-lg font-bold shadow-lg flex items-center gap-2"><i class="fas fa-print"></i> Buat Laporan</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -897,6 +950,170 @@
             } catch (err) { showToast(err.message, true); } 
             finally { setLoader(false); }
         });
+
+        // ==========================================
+        // FITUR CETAK LAPORAN BAST
+        // ==========================================
+        function openPrintModal() {
+            if (!currentUser) return;
+            const retaseAktif = document.getElementById('retaseFilter').value;
+            // Set dropdown modal cetak sesuai retase yang sedang dipilih (jika ada)
+            if(retaseAktif) {
+                document.getElementById('printRetase').value = retaseAktif;
+            }
+            document.getElementById('printModal').classList.remove('hidden');
+            document.getElementById('printModal').classList.add('flex');
+        }
+
+        function closePrintModal() {
+            document.getElementById('printModal').classList.add('hidden');
+            document.getElementById('printModal').classList.remove('flex');
+        }
+
+        function executePrint(e) {
+            e.preventDefault();
+            
+            const retase = document.getElementById('printRetase').value;
+            const fromLoc = document.getElementById('printFrom').value;
+            const toLoc = document.getElementById('printTo').value;
+            const sender = document.getElementById('printSender').value;
+            const receiver = document.getElementById('printReceiver').value;
+            
+            // Filter data sesuai pilihan Retase (Atau semua)
+            let printData = [];
+            if (retase === 'Semua') {
+                printData = allAssets.filter(a => a.retase && a.retase.trim() !== ''); // Hanya yg masuk retase
+            } else {
+                printData = allAssets.filter(a => a.retase === retase);
+            }
+
+            if (printData.length === 0) {
+                showToast(`Tidak ada data aset untuk ${retase} yang bisa dicetak!`, true);
+                return;
+            }
+
+            // Mendapatkan Tanggal Cetak
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+            // Generate HTML untuk di-print
+            let tableHTML = '';
+            printData.forEach((asset, index) => {
+                let statusStr = "Belum Dimuat";
+                if (asset.status === 'Diterima' || asset.status === 'Diterima_Nyasar') statusStr = "Telah Diterima (U2)";
+                else if (asset.status === 'Dimuat') statusStr = "Sedang Dimuat (U1)";
+
+                tableHTML += `
+                    <tr>
+                        <td style="text-align: center;">${index + 1}</td>
+                        <td>${asset.sn || '-'}</td>
+                        <td style="font-weight: bold;">${asset.ns_ecm || '-'}</td>
+                        <td>${asset.name || '-'}</td>
+                        <td>${asset.item_asset || '-'}</td>
+                        <td>${asset.category || '-'}</td>
+                        <td>${statusStr}</td>
+                    </tr>
+                `;
+            });
+
+            const htmlContent = `
+            <!DOCTYPE html>
+            <html lang="id">
+            <head>
+                <meta charset="UTF-8">
+                <title>BAST - ${retase}</title>
+                <style>
+                    body { font-family: 'Times New Roman', Times, serif; color: #000; margin: 20px; font-size: 14px; }
+                    .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                    .header h2 { margin: 0 0 5px 0; font-size: 20px; text-transform: uppercase; }
+                    .header p { margin: 0; font-size: 14px; }
+                    .info-table { width: 100%; margin-bottom: 20px; }
+                    .info-table td { padding: 4px; vertical-align: top; }
+                    .info-table td:first-child { width: 150px; font-weight: bold; }
+                    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+                    .data-table th, .data-table td { border: 1px solid #000; padding: 8px; text-align: left; }
+                    .data-table th { background-color: #f2f2f2; text-align: center; font-size: 13px; }
+                    .data-table td { font-size: 12px; }
+                    .ttd-section { width: 100%; margin-top: 40px; text-align: center; page-break-inside: avoid; }
+                    .ttd-section td { width: 50%; padding: 10px; }
+                    .ttd-name { font-weight: bold; text-decoration: underline; margin-top: 80px; }
+                    
+                    @media print {
+                        @page { margin: 1.5cm; }
+                        body { -webkit-print-color-adjust: exact; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>BERITA ACARA SERAH TERIMA ASET</h2>
+                    <p>Logistik Pindahan - Validasi ${retase === 'Semua' ? 'Keseluruhan' : retase}</p>
+                </div>
+
+                <table class="info-table">
+                    <tr><td>Hari / Tanggal</td><td>: ${dateStr}</td></tr>
+                    <tr><td>Lokasi Asal</td><td>: ${fromLoc.toUpperCase()}</td></tr>
+                    <tr><td>Lokasi Tujuan</td><td>: ${toLoc.toUpperCase()}</td></tr>
+                    <tr><td>Total Item</td><td>: <strong>${printData.length} Aset</strong></td></tr>
+                </table>
+
+                <p style="margin-bottom: 10px; text-align: justify;">
+                    Pada hari ini, telah dilakukan validasi dan serah terima aset logistik pindahan dengan rincian data sebagai berikut:
+                </p>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>S/N</th>
+                            <th>NS & ECM</th>
+                            <th>Nama Aset</th>
+                            <th>Item Asset</th>
+                            <th>Kategori</th>
+                            <th>Status Akhir</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableHTML}
+                    </tbody>
+                </table>
+
+                <p style="text-align: justify; margin-bottom: 40px;">
+                    Demikian Berita Acara ini dibuat dengan sebenar-benarnya untuk dapat dipergunakan sebagaimana mestinya.
+                </p>
+
+                <table class="ttd-section">
+                    <tr>
+                        <td>
+                            Yang Menyerahkan,<br>
+                            <strong>Pihak Pengirim</strong>
+                            <div class="ttd-name">${sender.toUpperCase()}</div>
+                        </td>
+                        <td>
+                            Yang Menerima,<br>
+                            <strong>Pihak Penerima</strong>
+                            <div class="ttd-name">${receiver.toUpperCase()}</div>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            `;
+
+            // Buka di Window/Tab Baru
+            const printWindow = window.open('', '_blank', 'width=800,height=900');
+            printWindow.document.open();
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            
+            closePrintModal(); // Tutup modal di aplikasi utama
+
+            // Tunggu sebentar agar HTML termuat penuh, lalu trigger print
+            setTimeout(() => {
+                printWindow.focus();
+                printWindow.print();
+            }, 500);
+        }
     </script>
 </body>
 </html>
