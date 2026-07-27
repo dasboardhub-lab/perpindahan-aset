@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Validasi Aset Logistik</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- SheetJS (Excel/CSV Parser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- HTML5 QRCode Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .locked-row { background-color: rgba(17, 24, 39, 0.7) !important; }
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; width: 24px; height: 24px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white">
+
+    <!-- LAYER LOGIN -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-900/50 text-blue-400 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-blue-700/50">
+                    <i class="fas fa-truck-loading"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Validasi Aset</h1>
+                <p class="text-gray-400 mt-2 text-sm">Masuk untuk memproses logistik pindahan</p>
+            </div>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Username</label>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                        <input type="text" id="username" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-gray-600" placeholder="user1 / user2" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                        <input type="password" id="password" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-gray-600" placeholder="123 / TAB123" required>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all mt-4">
+                    Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- LAYER APLIKASI UTAMA -->
+    <div id="appScreen" class="hidden h-full flex-col">
+        <!-- HEADER -->
+        <header class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center text-lg">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white text-lg leading-tight">Logistik Pindahan</h1>
+                    <p id="userRoleBadge" class="text-xs font-semibold text-blue-400 bg-blue-900/30 px-2 py-0.5 rounded inline-block border border-blue-800 mt-1">Role</p>
+                </div>
+            </div>
+            
+            <!-- Tombol Navigasi Kanan (Reset & Keluar) -->
+            <div class="flex items-center gap-2">
+                <button onclick="openResetConfirm()" class="text-red-400 hover:text-white bg-gray-900 hover:bg-red-700 p-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-red-900/50" title="Reset Semua Data ke Standby (Testing)">
+                    <i class="fas fa-undo-alt"></i> <span class="hidden md:inline">Reset Data</span>
+                </button>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-400 bg-gray-900 hover:bg-gray-700 p-2 px-4 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-gray-700">
+                    <i class="fas fa-sign-out-alt"></i> <span class="hidden md:inline">Keluar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- KONTEN -->
+        <main class="flex-grow flex flex-col overflow-hidden">
+            <!-- Aksi & Filter -->
+            <div class="bg-gray-800/50 p-4 border-b border-gray-700 shrink-0">
+                <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-4 justify-between items-center">
+                    
+                    <div class="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+                        <!-- Dropdown Retase (1-8) -->
+                        <select id="retaseFilter" onchange="loadData()" class="bg-gray-900 border border-blue-500 text-blue-400 font-bold px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer w-full md:w-48 shadow-inner">
+                            <option value="" disabled selected>-- Pilih Retase --</option>
+                            <option value="Retase 1">▶ Buka Retase 1</option>
+                            <option value="Retase 2">▶ Buka Retase 2</option>
+                            <option value="Retase 3">▶ Buka Retase 3</option>
+                            <option value="Retase 4">▶ Buka Retase 4</option>
+                            <option value="Retase 5">▶ Buka Retase 5</option>
+                            <option value="Retase 6">▶ Buka Retase 6</option>
+                            <option value="Retase 7">▶ Buka Retase 7</option>
+                            <option value="Retase 8">▶ Buka Retase 8</option>
+                        </select>
+                        
+                        <!-- Pencarian -->
+                        <div class="relative flex-grow md:min-w-[300px]">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-500"></i>
+                            <input type="text" id="searchInput" oninput="filterTable()" placeholder="Cari S/N, NS&ECM, Nama, Item..." class="w-full bg-gray-900 border border-gray-700 pl-10 pr-10 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
+                            <button id="clearSearchBtn" onclick="clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-red-400 hidden">
+                                <i class="fas fa-times-circle text-lg"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Scanner Barcode -->
+                        <button onclick="startScanner()" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all border border-gray-600 shadow-sm whitespace-nowrap">
+                            <i class="fas fa-camera"></i> Scan
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 w-full lg:w-auto justify-end">
+                        <button onclick="loadData()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-2.5 rounded-lg text-sm border border-gray-600" title="Refresh/Muat Ulang Data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        
+                        <!-- Actions Khusus User 2 (Penerima) -->
+                        <div id="u2Actions" class="hidden flex gap-2">
+                            <button id="u2LockBtn" onclick="openLockConfirm()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-emerald-900/50 flex gap-2 items-center transition-all opacity-50 cursor-not-allowed" disabled>
+                                <i class="fas fa-check-double"></i> Kunci Penerimaan
+                            </button>
+                            <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-50 px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-blue-900/50 flex gap-2 items-center">
+                                <i class="fas fa-plus"></i> Manual
+                            </button>
+                            <label for="fileUpload" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-indigo-900/50 flex gap-2 items-center cursor-pointer">
+                                <i class="fas fa-file-excel"></i> Upload Master
+                                <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleUpload(event)">
+                            </label>
+                        </div>
+
+                        <!-- Actions Khusus User 1 (Pemuat) -->
+                        <div id="u1Actions" class="hidden">
+                            <button id="lockBtn" onclick="openLockConfirm()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow-lg shadow-amber-900/50 flex gap-2 items-center transition-all opacity-50 cursor-not-allowed" disabled>
+                                <i class="fas fa-lock"></i> Kunci Retase Ini
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Data -->
+            <div class="overflow-auto custom-scrollbar flex-grow p-4 relative">
+                <div class="max-w-7xl mx-auto bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden">
+                    <table class="w-full text-left border-collapse min-w-[1050px]">
+                        <thead class="bg-gray-900 sticky top-0 z-10 border-b border-gray-700">
+                            <tr>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-12 text-center">No</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-28">S/N</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-32">NS & ECM</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-48">Nama Aset</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-40 text-blue-400">Item Asset</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-32">Kategori</th>
+                                <th class="p-4 text-gray-400 font-bold text-xs uppercase w-28">Retase</th>
+                                <th class="p-4 text-center border-l border-gray-700 bg-gray-800/80 w-24">
+                                    <span class="block text-blue-400 font-bold text-xs uppercase">U1 - Dimuat</span>
+                                </th>
+                                <th class="p-4 text-center border-l border-gray-700 bg-gray-800/80 w-28">
+                                    <span class="block text-emerald-400 font-bold text-xs uppercase">U2 - Diterima</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-700/50">
+                            <tr>
+                                <td colspan="9" class="p-16 text-center text-gray-500 font-medium">
+                                    <div class="text-5xl mb-4">👆</div>
+                                    Silakan pilih <span class="text-blue-400 font-bold">Retase</span> terlebih dahulu di atas
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Scanner -->
+    <div id="scannerModal" class="fixed inset-0 bg-black/80 z-[120] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-gray-700">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+                <h3 class="text-lg font-bold text-white"><i class="fas fa-camera mr-2 text-blue-400"></i>Scan Barcode</h3>
+                <button onclick="closeScannerModal()" class="text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-4 bg-gray-800">
+                <div id="reader" class="w-full rounded-lg overflow-hidden border-2 border-dashed border-gray-600 bg-black min-h-[300px]"></div>
+                <p class="text-center text-sm text-gray-400 mt-4"><i class="fas fa-info-circle"></i> Arahkan kamera HP ke Barcode S/N atau NS & ECM</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Data -->
+    <div id="addModal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-700">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+                <h3 class="font-bold text-white text-lg"><i class="fas fa-plus-circle text-blue-500 mr-2"></i>Tambah Aset Manual</h3>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form id="addForm" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-300 mb-1">S/N</label>
+                        <input type="text" id="newSn" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white" placeholder="Optional">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-300 mb-1">NS & ECM</label>
+                        <input type="text" id="newNsEcm" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Nama Aset</label>
+                    <input type="text" id="newName" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-blue-400 mb-1">Item Asset</label>
+                    <input type="text" id="newItemAsset" class="w-full px-3 py-2 bg-gray-900 border border-blue-500/50 rounded-lg focus:ring-2 focus:ring-blue-500 text-white" placeholder="Masukkan Item Aset..." required>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-300 mb-1">Kategori</label>
+                    <input type="text" id="newCategory" class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 text-white" required>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end">
+                    <button type="button" onclick="closeAddModal()" class="px-5 py-2 text-gray-400 font-bold hover:bg-gray-700 rounded-lg">Batal</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Kunci Custom -->
+    <div id="lockConfirmModal" class="fixed inset-0 bg-black/80 z-[150] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-amber-600/50">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-amber-900/50 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-700">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Kunci <span id="lockRetaseName"></span>?</h3>
+                <p id="lockDesc" class="text-gray-400 text-sm mb-6">Peringatan: Data yang sudah dikunci tidak bisa diubah lagi. Pastikan semua sudah sesuai fisik.</p>
+                <div class="flex gap-3 justify-center">
+                    <button onclick="closeLockConfirm()" class="px-5 py-2.5 text-gray-400 font-bold hover:bg-gray-700 rounded-lg transition-colors">Batal</button>
+                    <button onclick="executeLockRetase()" class="bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-lg font-bold shadow-lg transition-all">Ya, Kunci</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Reset Semua Data -->
+    <div id="resetConfirmModal" class="fixed inset-0 bg-black/80 z-[150] hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-red-600/50">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-900/50 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-red-700">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Reset Semua Data?</h3>
+                <p class="text-gray-400 text-sm mb-6">Peringatan: Seluruh data aset di server akan dikembalikan ke status <b>Standby</b>. Retase, Ceklis U1, Ceklis U2, dan Gembok akan dibersihkan. Gunakan hanya untuk mode testing!</p>
+                <div class="flex gap-3 justify-center">
+                    <button onclick="closeResetConfirm()" class="px-5 py-2.5 text-gray-400 font-bold hover:bg-gray-700 rounded-lg transition-colors">Batal</button>
+                    <button onclick="executeResetAll()" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2.5 rounded-lg font-bold shadow-lg transition-all">Ya, Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Notifikasi & Loading -->
+    <div id="toast" class="fixed bottom-6 right-6 px-6 py-4 rounded-xl text-white font-bold z-[200] shadow-2xl hidden items-center gap-3 border transform transition-all"></div>
+    <div id="globalLoader" class="fixed inset-0 bg-gray-900/90 backdrop-blur-sm z-[300] hidden flex-col items-center justify-center">
+        <div class="spinner mb-4"></div>
+        <p id="loaderText" class="text-blue-400 font-bold tracking-wide">Memproses data...</p>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://svmgwupvjybfmatjfafp.supabase.co/rest/v1/assets";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bWd3dXB2anliZm1hdGpmYWZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODc1NDUsImV4cCI6MjA4ODE2MzU0NX0.kP7Y0dy5l61Xi2S8ji9buq8W1R9ZNLyHyBHhTh3qFbw";
+        const HEADERS = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+
+        let currentUser = null;
+        let allAssets = [];
+        let html5QrcodeScanner = null;
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerHTML = isError ? `<i class="fas fa-exclamation-triangle text-xl"></i> ${message}` : `<i class="fas fa-check-circle text-xl"></i> ${message}`;
+            toast.className = `fixed bottom-6 right-6 px-6 py-4 rounded-xl text-white font-bold z-[200] shadow-2xl flex items-center gap-3 border ${isError ? 'bg-red-600 border-red-500' : 'bg-emerald-600 border-emerald-500'}`;
+            setTimeout(() => toast.classList.add('hidden'), 6000);
+        }
+
+        function setLoader(show, text = 'Memuat...') {
+            const loader = document.getElementById('globalLoader');
+            document.getElementById('loaderText').textContent = text;
+            if(show) { loader.classList.remove('hidden'); loader.classList.add('flex'); }
+            else { loader.classList.add('hidden'); loader.classList.remove('flex'); }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value;
+            
+            if (u === 'user1' && p === '123') currentUser = { role: 'user1', name: 'User 1 (Tim Pemuat)' };
+            else if (u === 'user2' && p === 'TAB123') currentUser = { role: 'user2', name: 'User 2 (Tim Penerima)' };
+            else return showToast('Login Gagal! Cek Username & Password.', true);
+
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('hidden');
+            document.getElementById('appScreen').classList.add('flex');
+            document.getElementById('userRoleBadge').textContent = `👤 ${currentUser.name}`;
+            
+            if (currentUser.role === 'user2') {
+                document.getElementById('u2Actions').classList.remove('hidden');
+                document.getElementById('u1Actions').classList.add('hidden');
+            } else {
+                document.getElementById('u2Actions').classList.add('hidden');
+                document.getElementById('u1Actions').classList.remove('hidden');
+            }
+            
+            if(document.getElementById('retaseFilter').value) loadData();
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('appScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('flex');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            
+            allAssets = [];
+            document.getElementById('retaseFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="9" class="p-16 text-center text-gray-500">Silakan pilih Retase terlebih dahulu</td></tr>`;
+        }
+
+        async function loadData() {
+            if (!currentUser) return;
+            const retaseTerpilih = document.getElementById('retaseFilter').value;
+            if (!retaseTerpilih) return; 
+
+            setLoader(true, 'Menarik data dari database...');
+            try {
+                const response = await fetch(`${SUPABASE_URL}?order=created_at.asc`, { headers: HEADERS });
+                if (!response.ok) throw new Error('Gagal terhubung ke database');
+                allAssets = await response.json();
+                
+                renderTable();
+            } catch (error) {
+                showToast(error.message, true);
+            } finally {
+                setLoader(false);
+            }
+        }
+
+        function filterTable() { 
+            const searchVal = document.getElementById('searchInput').value;
+            if(searchVal) document.getElementById('clearSearchBtn').classList.remove('hidden');
+            else document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderTable(); 
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderTable();
+        }
+
+        function renderTable() {
+            if (!currentUser) return;
+            const retaseTerpilih = document.getElementById('retaseFilter').value;
+            const searchVal = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const lockBtn = document.getElementById('lockBtn');
+            const u2LockBtn = document.getElementById('u2LockBtn');
+            const assetsInRetase = allAssets.filter(a => a.retase === retaseTerpilih);
+            
+            const isRetaseLockedByU1 = assetsInRetase.length > 0 && assetsInRetase.some(a => a.locked === true);
+            const isRetaseLockedByU2 = assetsInRetase.length > 0 && assetsInRetase.some(a => a.u2_locked === true);
+
+            // LOGIKA TOMBOL KUNCI KHUSUS USER 1
+            if (currentUser.role === 'user1' && retaseTerpilih) {
+                if (assetsInRetase.length === 0) {
+                    lockBtn.disabled = true; lockBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
+                    lockBtn.innerHTML = '<i class="fas fa-lock"></i> Kunci Retase Ini';
+                } else if (isRetaseLockedByU1) {
+                    lockBtn.disabled = true; lockBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
+                    lockBtn.innerHTML = '<i class="fas fa-lock text-red-300"></i> Retase Terkunci';
+                } else {
+                    lockBtn.disabled = false; lockBtn.classList.remove('opacity-50', 'cursor-not-allowed'); 
+                    lockBtn.innerHTML = '<i class="fas fa-unlock"></i> Kunci Retase Ini';
+                }
+            }
+
+            // LOGIKA TOMBOL KUNCI KHUSUS USER 2
+            if (currentUser.role === 'user2' && retaseTerpilih) {
+                if (assetsInRetase.length === 0) {
+                    u2LockBtn.disabled = true; u2LockBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    u2LockBtn.innerHTML = '<i class="fas fa-check-double"></i> Kunci Penerimaan';
+                } else if (isRetaseLockedByU2) {
+                    u2LockBtn.disabled = true; u2LockBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    u2LockBtn.innerHTML = '<i class="fas fa-lock text-emerald-300"></i> Penerimaan Terkunci';
+                } else {
+                    u2LockBtn.disabled = false; u2LockBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    u2LockBtn.innerHTML = '<i class="fas fa-check-double"></i> Kunci Penerimaan';
+                }
+            }
+
+            // LOGIKA FILTER MUTLAK
+            let filteredAssets = allAssets.filter(asset => {
+                const isStandby = !asset.retase || asset.retase.trim() === '';
+                const isMilikRetaseIni = asset.retase === retaseTerpilih;
+
+                if (searchVal) {
+                    // Paksaan Scanner: Membongkar barang Standby (Untuk fitur "Tarik Paksa/Barang Nyasar")
+                    return isMilikRetaseIni || isStandby;
+                } else {
+                    if (isRetaseLockedByU1) {
+                        return isMilikRetaseIni; 
+                    } else {
+                        return isStandby || isMilikRetaseIni;
+                    }
+                }
+            });
+
+            // TERAPKAN PENCARIAN TEKS
+            if (searchVal) {
+                filteredAssets = filteredAssets.filter(a => 
+                    (a.sn && a.sn.toLowerCase().includes(searchVal)) || 
+                    (a.ns_ecm && a.ns_ecm.toLowerCase().includes(searchVal)) ||
+                    (a.name && a.name.toLowerCase().includes(searchVal)) ||
+                    (a.item_asset && a.item_asset.toLowerCase().includes(searchVal))
+                );
+            }
+
+            if (filteredAssets.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-12 text-center text-gray-500">Tidak ada aset ditemukan.</td></tr>`;
+                return;
+            }
+
+            // GAMBAR BARIS TABEL
+            filteredAssets.forEach((asset, index) => {
+                const isStandby = !asset.retase || asset.retase.trim() === '';
+                
+                // STATUS DETECTOR BARU
+                const isDiterimaNyasar = asset.status === 'Diterima_Nyasar';
+                const u1Checked = asset.status === 'Dimuat' || asset.status === 'Diterima';
+                const u2Checked = asset.status === 'Diterima' || isDiterimaNyasar;
+                
+                let u1Disabled = currentUser.role !== 'user1' || isRetaseLockedByU1 || asset.locked;
+                let u2Disabled = currentUser.role !== 'user2' || isRetaseLockedByU2 || asset.u2_locked;
+
+                let badgeRetase = '';
+                if (isStandby) {
+                    badgeRetase = `<span class="bg-gray-700 text-gray-400 px-2 py-1 rounded text-xs border border-gray-600 shadow-sm"><i class="fas fa-hourglass-half text-[10px]"></i> Standby</span>`;
+                } else {
+                    badgeRetase = `<span class="bg-blue-900/50 text-blue-300 px-2 py-1 rounded text-xs border border-blue-700/50 font-bold shadow-sm">${asset.locked ? '<i class="fas fa-lock text-[10px]"></i> ' : ''}${asset.retase}</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                
+                // WARNA BARIS SPESIAL UNTUK BARANG NYASAR
+                if (isDiterimaNyasar) {
+                    tr.className = "bg-amber-900/20 hover:bg-amber-900/30 transition-colors border-l-4 border-amber-500";
+                } else if (u2Checked) {
+                    tr.className = "bg-emerald-900/10 hover:bg-emerald-900/20 transition-colors";
+                } else if (u1Checked) {
+                    tr.className = "bg-blue-900/10 hover:bg-blue-900/20 transition-colors";
+                } else {
+                    tr.className = "hover:bg-gray-700/50 transition-colors";
+                }
+
+                if (asset.locked) tr.classList.add('locked-row');
+
+                tr.innerHTML = `
+                    <td class="p-4 text-center text-gray-500 text-sm font-medium">${index + 1}</td>
+                    <td class="p-4 text-gray-300 font-mono text-sm">${asset.sn || '-'}</td>
+                    <td class="p-4 text-gray-300 font-mono text-sm font-bold">${asset.ns_ecm || '-'}</td>
+                    <td class="p-4 text-gray-200 text-sm font-medium">${asset.name || '-'}</td>
+                    <td class="p-4 text-blue-300 text-sm font-medium">${asset.item_asset || '-'}</td>
+                    <td class="p-4 text-gray-400 text-xs"><span class="bg-gray-800 px-2 py-1 rounded border border-gray-600">${asset.category || '-'}</span></td>
+                    <td class="p-4">${badgeRetase}</td>
+                    
+                    <td class="p-4 text-center border-l border-gray-700/50 bg-gray-800/30">
+                        <div class="flex flex-col items-center justify-center relative">
+                            ${(u1Disabled && currentUser.role === 'user1') ? '<div class="absolute inset-0 z-10 cursor-not-allowed" title="Terkunci"></div>' : ''}
+                            <input type="checkbox" class="w-6 h-6 rounded bg-gray-900 border-gray-600 text-blue-500 focus:ring-0 cursor-pointer ${u1Disabled ? 'opacity-40' : ''}" 
+                            style="accent-color: #3b82f6;"
+                            ${u1Checked ? 'checked' : ''} 
+                            ${u1Disabled ? 'disabled' : ''} 
+                            onchange="updateStatus('${asset.id}', this.checked, 1)">
+                            
+                            ${isDiterimaNyasar ? '<div class="text-[10px] text-amber-500 font-bold mt-1 bg-gray-900 px-1 rounded whitespace-nowrap border border-amber-600/50" title="Tim Pemuat tidak menceklis ini!"><i class="fas fa-exclamation-triangle"></i> Terlewat U1</div>' : ''}
+                        </div>
+                    </td>
+                    
+                    <td class="p-4 text-center border-l border-gray-700/50 bg-gray-800/30">
+                        <div class="flex items-center justify-center relative">
+                            ${(u2Disabled && currentUser.role === 'user2') ? '<div class="absolute inset-0 z-10 cursor-not-allowed" title="Terkunci"></div>' : ''}
+                            <input type="checkbox" class="w-6 h-6 rounded bg-gray-900 border-gray-600 text-emerald-500 focus:ring-0 cursor-pointer ${u2Disabled ? 'opacity-40' : ''}" 
+                            style="accent-color: #10b981;"
+                            ${u2Checked ? 'checked' : ''} 
+                            ${u2Disabled ? 'disabled' : ''} 
+                            onchange="updateStatus('${asset.id}', this.checked, 2)">
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function updateStatus(id, isChecked, userType) {
+            const retaseTerpilih = document.getElementById('retaseFilter').value;
+            const currentAsset = allAssets.find(a => a.id === id);
+            let payload = {};
+
+            if (userType === 1) { 
+                if (isChecked) {
+                    payload.status = currentAsset.status === 'Diterima_Nyasar' ? 'Diterima' : 'Dimuat';
+                    payload.retase = retaseTerpilih; 
+                } else {
+                    payload.status = currentAsset.status === 'Diterima' ? 'Diterima_Nyasar' : 'Standby';
+                    if (payload.status === 'Standby') payload.retase = ''; 
+                }
+            } else if (userType === 2) { 
+                if (isChecked) {
+                    // Logic Barang Nyasar (Force Pull tanpa U1)
+                    payload.status = currentAsset.status === 'Dimuat' ? 'Diterima' : 'Diterima_Nyasar';
+                    payload.retase = retaseTerpilih;
+                } else {
+                    payload.status = currentAsset.status === 'Diterima' ? 'Dimuat' : 'Standby';
+                    if (payload.status === 'Standby') payload.retase = '';
+                }
+            }
+
+            try {
+                // Update UI Instan agar super responsif
+                if (payload.status !== undefined) currentAsset.status = payload.status;
+                if (payload.retase !== undefined) currentAsset.retase = payload.retase;
+                renderTable(); 
+
+                // Simpan ke Database
+                const response = await fetch(`${SUPABASE_URL}?id=eq.${id}`, {
+                    method: 'PATCH',
+                    headers: HEADERS,
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error('Gagal menyimpan ke Server');
+            } catch (error) {
+                showToast('Gagal update database, memuat ulang...', true);
+                loadData(); 
+            }
+        }
+
+        function openLockConfirm() {
+            const retase = document.getElementById('retaseFilter').value;
+            if (!retase) return;
+            document.getElementById('lockRetaseName').textContent = retase;
+            
+            // Ubah teks peringatan berdasarkan Role yang sedang mengunci
+            const lockDesc = currentUser.role === 'user1' ? 
+                'Peringatan: Data yang sudah dikunci tidak bisa diubah oleh Tim Pemuat (U1).' :
+                'Peringatan: Ceklis penerimaan (U2) akan dikunci total dan tidak bisa diubah lagi.';
+            document.getElementById('lockDesc').textContent = lockDesc;
+            
+            document.getElementById('lockConfirmModal').classList.remove('hidden');
+            document.getElementById('lockConfirmModal').classList.add('flex');
+        }
+
+        function closeLockConfirm() {
+            document.getElementById('lockConfirmModal').classList.add('hidden');
+            document.getElementById('lockConfirmModal').classList.remove('flex');
+        }
+
+        async function executeLockRetase() {
+            closeLockConfirm();
+            const retase = document.getElementById('retaseFilter').value;
+            if (!retase) return;
+
+            setLoader(true, `Sedang mengunci ${retase}...`);
+            try {
+                let lockPayload = {};
+                // Tentukan siapa yang memicu penguncian
+                if (currentUser.role === 'user1') lockPayload = { locked: true };
+                else if (currentUser.role === 'user2') lockPayload = { u2_locked: true };
+
+                const response = await fetch(`${SUPABASE_URL}?retase=eq.${retase}`, {
+                    method: 'PATCH',
+                    headers: HEADERS,
+                    body: JSON.stringify(lockPayload)
+                });
+                
+                if (!response.ok) throw new Error('Gagal mengunci dari Server');
+                
+                // Update data lokal
+                allAssets.forEach(a => { 
+                    if(a.retase === retase) {
+                        if (currentUser.role === 'user1') a.locked = true;
+                        if (currentUser.role === 'user2') a.u2_locked = true;
+                    }
+                });
+                
+                showToast(`🔒 ${retase} Berhasil Dikunci!`);
+                renderTable(); 
+            } catch (error) {
+                showToast(`Gagal mengunci: ${error.message}`, true);
+            } finally {
+                setLoader(false);
+            }
+        }
+
+        // ===============================================
+        // FUNGSI RESET SEMUA DATA (TESTING MODE)
+        // ===============================================
+        function openResetConfirm() {
+            document.getElementById('resetConfirmModal').classList.remove('hidden');
+            document.getElementById('resetConfirmModal').classList.add('flex');
+        }
+
+        function closeResetConfirm() {
+            document.getElementById('resetConfirmModal').classList.add('hidden');
+            document.getElementById('resetConfirmModal').classList.remove('flex');
+        }
+
+        async function executeResetAll() {
+            closeResetConfirm();
+            setLoader(true, 'Membersihkan & Mereset seluruh data ke Standby...');
+            
+            try {
+                // Memberikan perintah PATCH ke Supabase untuk mengubah SELURUH data 
+                // (?id=not.is.null adalah trik untuk memilih semua baris)
+                const response = await fetch(`${SUPABASE_URL}?id=not.is.null`, {
+                    method: 'PATCH',
+                    headers: HEADERS,
+                    body: JSON.stringify({
+                        status: 'Standby',
+                        retase: '',
+                        locked: false,
+                        u2_locked: false
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Gagal mereset data di Server Database');
+                
+                showToast(`✅ Seluruh data berhasil dikembalikan ke status Standby!`);
+                
+                // Refresh Data setelah sukses
+                document.getElementById('retaseFilter').value = ''; 
+                loadData(); 
+            } catch (error) {
+                showToast(`Gagal reset: ${error.message}`, true);
+            } finally {
+                setLoader(false);
+            }
+        }
+
+        function handleUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            setLoader(true, 'Membaca file Master Data...');
+
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.SheetNames[0];
+                    const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: '' });
+
+                    let headerIdx = -1;
+                    let colMap = { sn: -1, ns: -1, name: -1, item: -1, cat: -1 };
+
+                    for (let i = 0; i < rawData.length; i++) {
+                        const rowStr = rawData[i].map(c => String(c).toLowerCase()).join(' ');
+                        if (rowStr.includes('name') || rowStr.includes('nama') || rowStr.includes('ecm') || rowStr.includes('s/n') || rowStr.includes('nik') || rowStr.includes('item')) {
+                            headerIdx = i;
+                            rawData[i].forEach((col, idx) => {
+                                const c = String(col).toLowerCase().trim();
+                                if (c.includes('s/n') || c === 'sn' || c.includes('nik')) colMap.sn = idx;
+                                else if (c.includes('ns') || c.includes('ecm') || c.includes('nomor') || c.includes('id')) colMap.ns = idx;
+                                else if (c === 'name' || c.includes('nama') || c.includes('karyawan')) colMap.name = idx;
+                                else if (c.includes('item') || c.includes('jabatan') || c.includes('posisi')) colMap.item = idx;
+                                else if (c.includes('kategori') || c.includes('category') || c.includes('departemen')) colMap.cat = idx;
+                            });
+                            break;
+                        }
+                    }
+
+                    if (headerIdx === -1) {
+                        headerIdx = 0; 
+                        colMap = { sn: 1, ns: 2, name: 3, item: 4, cat: 5 };
+                    }
+
+                    const payload = [];
+                    for (let i = headerIdx + 1; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        if (!row || row.length === 0 || row.join('').trim() === '') continue;
+
+                        const sn = colMap.sn !== -1 ? String(row[colMap.sn] || '') : '';
+                        const ns_ecm = colMap.ns !== -1 ? String(row[colMap.ns] || '') : '';
+                        const name = colMap.name !== -1 ? String(row[colMap.name] || '') : '';
+                        const item_asset = colMap.item !== -1 ? String(row[colMap.item] || '') : '';
+                        const category = colMap.cat !== -1 ? String(row[colMap.cat] || '') : '';
+
+                        if (!sn && !ns_ecm && !name && !item_asset) continue;
+
+                        payload.push({
+                            sn: sn.trim() || '-',
+                            ns_ecm: ns_ecm.trim() || '-',
+                            name: name.trim() || '-',
+                            item_asset: item_asset.trim() || '-',
+                            category: category.trim() || '-',
+                            status: 'Standby',
+                            retase: '',        
+                            locked: false,
+                            u2_locked: false
+                        });
+                    }
+
+                    if (payload.length > 0) {
+                        setLoader(true, `Menyimpan ${payload.length} data ke Server...`);
+                        
+                        const chunkSize = 500;
+                        for (let i = 0; i < payload.length; i += chunkSize) {
+                            const chunk = payload.slice(i, i + chunkSize);
+                            const response = await fetch(SUPABASE_URL, {
+                                method: 'POST',
+                                headers: HEADERS,
+                                body: JSON.stringify(chunk)
+                            });
+                            if(!response.ok) {
+                                const err = await response.json();
+                                throw new Error(`DB Error: ${err.message || 'Gagal menyimpan, cek struktur SQL.'}`);
+                            }
+                        }
+                        
+                        showToast(`✅ ${payload.length} Master Data berhasil diunggah!`);
+                        if (document.getElementById('retaseFilter').value) loadData();
+                    } else {
+                        showToast('Tidak ada data valid yang bisa dibaca', true);
+                    }
+                } catch (error) {
+                    showToast(error.message, true);
+                } finally {
+                    setLoader(false);
+                    e.target.value = ''; 
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function startScanner() {
+            const modal = document.getElementById('scannerModal');
+            modal.classList.remove('hidden');
+            
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+            }
+
+            html5QrcodeScanner.render(
+                (decodedText) => {
+                    document.getElementById('searchInput').value = decodedText;
+                    closeScannerModal();
+                    filterTable();
+                    showToast('✅ Barcode Ditemukan!');
+                },
+                (error) => { /* Abaikan error per frame */ }
+            );
+        }
+
+        function closeScannerModal() {
+            document.getElementById('scannerModal').classList.add('hidden');
+            if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.log(e));
+        }
+
+        function openAddModal() { document.getElementById('addModal').classList.remove('hidden'); }
+        function closeAddModal() { document.getElementById('addModal').classList.add('hidden'); }
+
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoader(true, 'Menyimpan manual...');
+            
+            const payload = {
+                sn: document.getElementById('newSn').value || '-',
+                ns_ecm: document.getElementById('newNsEcm').value || '-',
+                name: document.getElementById('newName').value || '-',
+                item_asset: document.getElementById('newItemAsset').value || '-',
+                category: document.getElementById('newCategory').value || '-',
+                status: 'Standby',
+                retase: '', 
+                locked: false,
+                u2_locked: false
+            };
+            
+            try {
+                const response = await fetch(SUPABASE_URL, {
+                    method: 'POST',
+                    headers: HEADERS,
+                    body: JSON.stringify([payload])
+                });
+                if (!response.ok) throw new Error('Gagal simpan ke DB');
+                
+                showToast('Aset Manual Ditambahkan!');
+                closeAddModal();
+                document.getElementById('addForm').reset();
+                if(document.getElementById('retaseFilter').value) loadData();
+            } catch (err) { 
+                showToast(err.message, true); 
+                setLoader(false); 
+            }
+        });
+    </script>
+</body>
+</html>
