@@ -55,18 +55,28 @@
                     <label class="block text-sm font-semibold text-gray-300 mb-1">Username</label>
                     <div class="relative">
                         <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                        <input type="text" id="username" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white text-base placeholder-gray-600" placeholder="user1 / user2" required>
+                        <input type="text" id="username" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white text-base placeholder-gray-600" placeholder="Masukkan username" required>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-300 mb-1">Password</label>
                     <div class="relative">
                         <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                        <input type="password" id="password" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white text-base placeholder-gray-600" placeholder="123 / TAB123" required>
+                        <input type="password" id="password" class="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white text-base placeholder-gray-600" placeholder="Masukkan password" required>
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all mt-4 text-base">
                     Masuk
+                </button>
+                
+                <div class="relative flex items-center py-2 mt-2">
+                    <div class="flex-grow border-t border-gray-700"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-500 text-sm font-medium">ATAU</span>
+                    <div class="flex-grow border-t border-gray-700"></div>
+                </div>
+                
+                <button type="button" onclick="loginAsVisitor()" class="w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-300 font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-eye"></i> Masuk sebagai Visitor
                 </button>
             </form>
         </div>
@@ -86,7 +96,7 @@
             </div>
             
             <div class="flex items-center gap-1.5 sm:gap-2">
-                <button onclick="openResetConfirm()" class="text-red-400 hover:text-white bg-gray-900 hover:bg-red-700 p-2 sm:px-4 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-red-900/50" title="Reset Semua Data ke Standby">
+                <button id="resetDataBtn" onclick="openResetConfirm()" class="text-red-400 hover:text-white bg-gray-900 hover:bg-red-700 p-2 sm:px-4 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-red-900/50" title="Reset Semua Data ke Standby">
                     <i class="fas fa-undo-alt text-base sm:text-sm"></i> <span class="hidden md:inline">Reset Data</span>
                 </button>
                 <button onclick="logout()" class="text-gray-400 hover:text-red-400 bg-gray-900 hover:bg-gray-700 p-2 sm:px-4 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold border border-gray-700">
@@ -327,6 +337,12 @@
             else { loader.classList.add('hidden'); loader.classList.remove('flex'); }
         }
 
+        function loginAsVisitor() {
+            document.getElementById('username').value = 'visitor';
+            document.getElementById('password').value = 'visitor';
+            handleLogin({ preventDefault: () => {} });
+        }
+
         function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('username').value.trim();
@@ -334,6 +350,7 @@
             
             if (u === 'user1' && p === '123') currentUser = { role: 'user1', name: 'User 1 (Pemuat)' };
             else if (u === 'user2' && p === 'TAB123') currentUser = { role: 'user2', name: 'User 2 (Penerima)' };
+            else if (u === 'visitor' && p === 'visitor') currentUser = { role: 'visitor', name: 'Visitor (Pemantau)' };
             else return showToast('Login Gagal! Cek Username & Password.', true);
 
             document.getElementById('loginScreen').classList.add('hidden');
@@ -344,9 +361,16 @@
             if (currentUser.role === 'user2') {
                 document.getElementById('u2Actions').classList.remove('hidden');
                 document.getElementById('u1Actions').classList.add('hidden');
-            } else {
+                document.getElementById('resetDataBtn').classList.remove('hidden');
+            } else if (currentUser.role === 'user1') {
                 document.getElementById('u2Actions').classList.add('hidden');
                 document.getElementById('u1Actions').classList.remove('hidden');
+                document.getElementById('resetDataBtn').classList.remove('hidden');
+            } else {
+                // Konfigurasi hak akses Visitor (Pemantau saja)
+                document.getElementById('u2Actions').classList.add('hidden');
+                document.getElementById('u1Actions').classList.add('hidden');
+                document.getElementById('resetDataBtn').classList.add('hidden');
             }
             
             document.getElementById('username').blur();
