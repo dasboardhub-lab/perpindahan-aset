@@ -155,6 +155,7 @@
                             <!-- Dropdown Retase -->
                             <select id="retaseFilter" onchange="loadData()" class="flex-grow min-w-[130px] bg-gray-900 border border-blue-500 text-blue-400 font-bold px-3 py-3 md:py-2.5 rounded-xl md:rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-inner text-sm appearance-none">
                                 <option value="" selected>-- Semua Data --</option>
+                                <option value="Standby">⏳ Hanya Sisa Standby</option>
                                 <option value="Retase 1">▶ Buka Retase 1</option>
                                 <option value="Retase 2">▶ Buka Retase 2</option>
                                 <option value="Retase 3">▶ Buka Retase 3</option>
@@ -317,11 +318,11 @@
                 <div class="w-16 h-16 bg-amber-900/50 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4 border border-amber-700">
                     <i class="fas fa-lock"></i>
                 </div>
-                <h3 class="text-xl font-bold text-white mb-2">Kunci <span id="lockRetaseName"></span>?</h3>
+                <h3 id="lockModalTitle" class="text-xl font-bold text-white mb-2">Kunci Retase?</h3>
                 <p id="lockDesc" class="text-gray-400 text-sm mb-6">Peringatan: Data yang sudah dikunci tidak bisa diubah lagi. Pastikan semua sudah sesuai fisik.</p>
                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
                     <button onclick="closeLockConfirm()" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 text-gray-400 font-bold bg-gray-900 hover:bg-gray-700 rounded-xl sm:rounded-lg transition-colors">Batal</button>
-                    <button onclick="executeLockRetase()" class="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold shadow-lg transition-all">Ya, Kunci</button>
+                    <button id="confirmLockBtn" onclick="executeLockRetase()" class="w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold shadow-lg transition-all">Ya, Kunci</button>
                 </div>
             </div>
         </div>
@@ -356,6 +357,7 @@
                     <label class="block text-xs sm:text-sm font-semibold text-gray-300 mb-1">Pilih Data Retase</label>
                     <select id="printRetase" class="w-full px-3 py-3 sm:py-2.5 bg-gray-900 border border-indigo-500/50 rounded-xl sm:rounded-lg focus:ring-2 focus:ring-indigo-500 text-white text-base sm:text-sm cursor-pointer shadow-inner appearance-none font-bold" required>
                         <option value="Semua">Semua Retase (Seluruh Gudang)</option>
+                        <option value="Standby">Hanya Barang Standby (Belum Dimuat)</option>
                         <option value="Retase 1">Retase 1</option>
                         <option value="Retase 2">Retase 2</option>
                         <option value="Retase 3">Retase 3</option>
@@ -536,7 +538,7 @@
 
             // LOGIKA TOMBOL KUNCI REAL-TIME
             if (currentUser.role === 'user1') {
-                if (!retaseTerpilih || assetsInRetase.length === 0) {
+                if (!retaseTerpilih || retaseTerpilih === 'Standby' || assetsInRetase.length === 0) {
                     lockBtn.disabled = true; lockBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
                     lockBtn.innerHTML = '<i class="fas fa-lock text-lg md:text-base"></i> <span class="hidden md:inline">Kunci Retase</span>';
                 } else if (isRetaseLockedByU1) {
@@ -549,15 +551,23 @@
             }
 
             if (currentUser.role === 'user2') {
-                if (!retaseTerpilih || assetsInRetase.length === 0) {
-                    u2LockBtn.disabled = true; u2LockBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                if (!retaseTerpilih || retaseTerpilih === 'Standby' || assetsInRetase.length === 0) {
+                    u2LockBtn.disabled = true; 
+                    u2LockBtn.className = "w-11 h-11 md:w-auto md:h-auto bg-emerald-700 hover:bg-emerald-600 text-white md:px-4 md:py-2.5 rounded-xl md:rounded-lg text-sm font-bold shadow-lg flex justify-center gap-2 items-center transition-all opacity-50 cursor-not-allowed shrink-0";
                     u2LockBtn.innerHTML = '<i class="fas fa-check-double text-lg md:text-base"></i> <span class="hidden md:inline">Kunci Terima</span>';
+                    u2LockBtn.setAttribute('onclick', 'openLockConfirm(true)');
                 } else if (isRetaseLockedByU2) {
-                    u2LockBtn.disabled = true; u2LockBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    u2LockBtn.innerHTML = '<i class="fas fa-lock text-emerald-300 text-lg md:text-base"></i> <span class="hidden md:inline">Terkunci</span>';
+                    // MODE BUKA KUNCI
+                    u2LockBtn.disabled = false; 
+                    u2LockBtn.className = "w-11 h-11 md:w-auto md:h-auto bg-red-700 hover:bg-red-600 text-white md:px-4 md:py-2.5 rounded-xl md:rounded-lg text-sm font-bold shadow-lg flex justify-center gap-2 items-center transition-all shrink-0";
+                    u2LockBtn.innerHTML = '<i class="fas fa-lock-open text-lg md:text-base"></i> <span class="hidden md:inline">Buka Kunci</span>';
+                    u2LockBtn.setAttribute('onclick', 'openLockConfirm(false)');
                 } else {
-                    u2LockBtn.disabled = false; u2LockBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    // MODE KUNCI NORMAL
+                    u2LockBtn.disabled = false; 
+                    u2LockBtn.className = "w-11 h-11 md:w-auto md:h-auto bg-emerald-700 hover:bg-emerald-600 text-white md:px-4 md:py-2.5 rounded-xl md:rounded-lg text-sm font-bold shadow-lg flex justify-center gap-2 items-center transition-all shrink-0";
                     u2LockBtn.innerHTML = '<i class="fas fa-check-double text-lg md:text-base"></i> <span class="hidden md:inline">Kunci Terima</span>';
+                    u2LockBtn.setAttribute('onclick', 'openLockConfirm(true)');
                 }
             }
 
@@ -565,7 +575,10 @@
             let filteredAssets = allAssets.filter(asset => {
                 if (!retaseTerpilih) return true; // Tampilkan SEMUA data jika filter "Semua Data" terpilih
 
-                const isStandby = !asset.retase || asset.retase.trim() === '';
+                const isStandby = !asset.retase || asset.retase.trim() === '' || asset.status === 'Standby';
+                
+                if (retaseTerpilih === 'Standby') return isStandby; // Tampilkan HANYA Sisa Gudang
+
                 const isMilikRetaseIni = asset.retase === retaseTerpilih;
 
                 if (searchVal) {
@@ -585,6 +598,15 @@
                 );
             }
 
+            // SMART SORTING: Tarik barang retase terpilih ke paling atas tabel, biarkan standby di bawah
+            if (retaseTerpilih && retaseTerpilih !== 'Standby' && !searchVal) {
+                filteredAssets.sort((a, b) => {
+                    if (a.retase === retaseTerpilih && b.retase !== retaseTerpilih) return -1;
+                    if (a.retase !== retaseTerpilih && b.retase === retaseTerpilih) return 1;
+                    return 0;
+                });
+            }
+
             if (filteredAssets.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" class="p-8 sm:p-12 text-center text-gray-500 bg-gray-900">Tidak ada aset ditemukan.</td></tr>`;
                 return;
@@ -592,15 +614,15 @@
 
             // MENGGAMBAR BARIS TABEL (RESPONSIVE: Kartu di HP, Baris di Desktop)
             filteredAssets.forEach((asset, index) => {
-                const isStandby = !asset.retase || asset.retase.trim() === '';
+                const isStandby = !asset.retase || asset.retase.trim() === '' || asset.status === 'Standby';
                 const isDiterimaNyasar = asset.status === 'Diterima_Nyasar';
                 const u1Checked = asset.status === 'Dimuat' || asset.status === 'Diterima';
                 const u2Checked = asset.status === 'Diterima' || isDiterimaNyasar;
                 
-                let u1Disabled = currentUser.role !== 'user1' || isRetaseLockedByU1 || asset.locked || !retaseTerpilih;
-                let u2Disabled = currentUser.role !== 'user2' || isRetaseLockedByU2 || asset.u2_locked || !retaseTerpilih;
+                let u1Disabled = currentUser.role !== 'user1' || isRetaseLockedByU1 || asset.locked || !retaseTerpilih || retaseTerpilih === 'Standby';
+                let u2Disabled = currentUser.role !== 'user2' || isRetaseLockedByU2 || asset.u2_locked || !retaseTerpilih || retaseTerpilih === 'Standby';
                 
-                const noRetaseOverlay = !retaseTerpilih ? '<div class="absolute inset-0 z-10 cursor-not-allowed" title="Pilih Retase di atas untuk menceklis"></div>' : '';
+                const noRetaseOverlay = (!retaseTerpilih || retaseTerpilih === 'Standby') ? '<div class="absolute inset-0 z-10 cursor-not-allowed" title="Pilih Retase (1-8) di atas untuk menceklis"></div>' : '';
 
                 let badgeRetase = '';
                 if (isStandby) {
@@ -684,7 +706,7 @@
             
             let total = 0, standby = 0, dimuat = 0, diterima = 0, nyasar = 0;
 
-            if (retaseTerpilih) {
+            if (retaseTerpilih && retaseTerpilih !== 'Standby') {
                 statTitle.textContent = retaseTerpilih;
                 const retaseAssets = allAssets.filter(a => a.retase === retaseTerpilih);
                 total = retaseAssets.length;
@@ -694,6 +716,11 @@
                 
                 // Standby selalu mengambil dari keseluruhan barang yang belum diapa-apakan
                 standby = allAssets.filter(a => !a.retase || a.retase.trim() === '' || a.status === 'Standby').length; 
+            } else if (retaseTerpilih === 'Standby') {
+                statTitle.textContent = 'Sisa Gudang (Standby)';
+                const standbyAssets = allAssets.filter(a => !a.retase || a.retase.trim() === '' || a.status === 'Standby');
+                total = standbyAssets.length;
+                standby = total;
             } else {
                 statTitle.textContent = 'Keseluruhan Gudang';
                 total = allAssets.length;
@@ -713,8 +740,8 @@
 
         async function updateStatus(id, isChecked, userType) {
             const retaseTerpilih = document.getElementById('retaseFilter').value;
-            if (!retaseTerpilih) {
-                showToast('Pilih Retase terlebih dahulu sebelum memvalidasi!', true);
+            if (!retaseTerpilih || retaseTerpilih === 'Standby') {
+                showToast('Pilih Retase (1-8) terlebih dahulu sebelum memvalidasi!', true);
                 renderTable();
                 return;
             }
@@ -741,12 +768,16 @@
             }
 
             try {
+                // Update UI Instan agar super responsif
                 if (payload.status !== undefined) currentAsset.status = payload.status;
                 if (payload.retase !== undefined) currentAsset.retase = payload.retase;
                 renderTable(); 
 
+                // Simpan ke Database
                 const response = await fetch(`${SUPABASE_URL}?id=eq.${id}`, {
-                    method: 'PATCH', headers: HEADERS, body: JSON.stringify(payload)
+                    method: 'PATCH',
+                    headers: HEADERS,
+                    body: JSON.stringify(payload)
                 });
                 if (!response.ok) throw new Error('Gagal menyimpan ke Server');
             } catch (error) {
@@ -755,14 +786,31 @@
             }
         }
 
-        function openLockConfirm() {
+        function openLockConfirm(isLocking = true) {
+            window.currentLockAction = isLocking;
             const retase = document.getElementById('retaseFilter').value;
             if (!retase) return;
-            document.getElementById('lockRetaseName').textContent = retase;
-            const lockDesc = currentUser.role === 'user1' ? 
-                'Peringatan: Data yang sudah dikunci tidak bisa diubah oleh Tim Pemuat (U1).' :
-                'Peringatan: Ceklis penerimaan (U2) akan dikunci total dan tidak bisa diubah lagi.';
-            document.getElementById('lockDesc').textContent = lockDesc;
+            
+            const lockModalTitle = document.getElementById('lockModalTitle');
+            const lockDesc = document.getElementById('lockDesc');
+            const confirmLockBtn = document.getElementById('confirmLockBtn');
+            
+            if (isLocking) {
+                lockModalTitle.innerHTML = `Kunci <span class="text-amber-500">${retase}</span>?`;
+                lockDesc.textContent = currentUser.role === 'user1' ? 
+                    'Peringatan: Data yang sudah dikunci tidak bisa diubah oleh Tim Pemuat (U1).' :
+                    'Peringatan: Ceklis penerimaan (U2) akan dikunci total dan tidak bisa diubah lagi.';
+                
+                confirmLockBtn.innerHTML = "Ya, Kunci";
+                confirmLockBtn.className = "w-full sm:w-auto bg-amber-600 hover:bg-amber-500 text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold shadow-lg transition-all";
+            } else {
+                lockModalTitle.innerHTML = `Buka Kunci <span class="text-red-400">${retase}</span>?`;
+                lockDesc.textContent = 'Peringatan: Kunci penerimaan akan dibuka. Anda bisa mengedit kembali ceklis U2.';
+                
+                confirmLockBtn.innerHTML = "Ya, Buka";
+                confirmLockBtn.className = "w-full sm:w-auto bg-red-600 hover:bg-red-500 text-white px-6 py-3 sm:py-2.5 rounded-xl sm:rounded-lg font-bold shadow-lg transition-all";
+            }
+            
             document.getElementById('lockConfirmModal').classList.remove('hidden');
             document.getElementById('lockConfirmModal').classList.add('flex');
         }
@@ -776,21 +824,25 @@
             closeLockConfirm();
             const retase = document.getElementById('retaseFilter').value;
             if (!retase) return;
-            setLoader(true, `Mengunci ${retase}...`);
+            
+            const isLocking = window.currentLockAction !== false;
+            setLoader(true, isLocking ? `Mengunci ${retase}...` : `Membuka kunci ${retase}...`);
+            
             try {
-                let lockPayload = currentUser.role === 'user1' ? { locked: true } : { u2_locked: true };
+                let lockPayload = currentUser.role === 'user1' ? { locked: true } : { u2_locked: isLocking };
                 const response = await fetch(`${SUPABASE_URL}?retase=eq.${retase}`, {
                     method: 'PATCH', headers: HEADERS, body: JSON.stringify(lockPayload)
                 });
-                if (!response.ok) throw new Error('Gagal mengunci dari Server');
+                if (!response.ok) throw new Error('Gagal memproses ke Server');
                 
                 allAssets.forEach(a => { 
                     if(a.retase === retase) {
                         if (currentUser.role === 'user1') a.locked = true;
-                        if (currentUser.role === 'user2') a.u2_locked = true;
+                        if (currentUser.role === 'user2') a.u2_locked = isLocking;
                     }
                 });
-                showToast(`🔒 ${retase} Dikunci!`);
+                
+                showToast(isLocking ? `🔒 ${retase} Dikunci!` : `🔓 Kunci ${retase} Dibuka!`);
                 renderTable(); 
             } catch (error) { showToast(`Error: ${error.message}`, true); } 
             finally { setLoader(false); }
@@ -983,6 +1035,8 @@
             let printData = [];
             if (retase === 'Semua') {
                 printData = allAssets.filter(a => a.retase && a.retase.trim() !== ''); // Hanya yg masuk retase
+            } else if (retase === 'Standby') {
+                printData = allAssets.filter(a => !a.retase || a.retase.trim() === '' || a.status === 'Standby');
             } else {
                 printData = allAssets.filter(a => a.retase === retase);
             }
@@ -1000,8 +1054,8 @@
             let tableHTML = '';
             printData.forEach((asset, index) => {
                 let statusStr = "Belum Dimuat";
-                if (asset.status === 'Diterima' || asset.status === 'Diterima_Nyasar') statusStr = "Telah Diterima (U2)";
-                else if (asset.status === 'Dimuat') statusStr = "Sedang Dimuat (U1)";
+                if (asset.status === 'Diterima' || asset.status === 'Diterima_Nyasar') statusStr = "Telah Diterima";
+                else if (asset.status === 'Dimuat') statusStr = "Sedang Dimuat";
 
                 tableHTML += `
                     <tr>
@@ -1047,7 +1101,7 @@
             <body>
                 <div class="header">
                     <h2>BERITA ACARA SERAH TERIMA ASET</h2>
-                    <p>Logistik Pindahan - Validasi ${retase === 'Semua' ? 'Keseluruhan' : retase}</p>
+                    <p>Validasi Aset - ${retase === 'Semua' ? 'Keseluruhan' : retase}</p>
                 </div>
 
                 <table class="info-table">
@@ -1058,7 +1112,7 @@
                 </table>
 
                 <p style="margin-bottom: 10px; text-align: justify;">
-                    Pada hari ini, telah dilakukan validasi dan serah terima aset logistik pindahan dengan rincian data sebagai berikut:
+                    Pada hari ini, telah dilakukan validasi dan serah terima aset pindahan dengan rincian data sebagai berikut:
                 </p>
 
                 <table class="data-table">
